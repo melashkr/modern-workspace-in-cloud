@@ -1,0 +1,25 @@
+#Install schoco
+ #Info: run Powershell as Admin
+ cmd: Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+ link: https://chocolatey.org/install
+
+
+-) Install Tools
+	#- notepade++
+	cmd: choco install notepadplusplus.install --version=8.1.3 -y
+	Info: -y for all users
+	link: https://community.chocolatey.org/packages/notepadplusplus.install/8.1.3
+	access date 03.06.2023
+	
+	- vscode
+	cmd: choco install vscode -y
+	link: https://community.chocolatey.org/packages/vscode
+	
+	- Apache HTTP Server Project 2.4.55
+	cmd: choco install apache-httpd -y
+	link: https://community.chocolatey.org/packages/apache-httpd
+	
+	- google chrome:
+	cmd: choco install googlechrome -y
+	cmd all-users: choco install googlechrome-allusers
+	link: https://community.chocolatey.org/packages/GoogleChrome
