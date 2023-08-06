@@ -1,0 +1,22 @@
+# Ignore all backup files
+*.backup
+
+# Ignore Terraform state files and logs
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.log
+
+# Ignore Terraform crash log files
+crash.log
+
+# Ignore local .terraform directories
+.terraform/*
+
+# Ignore any sensitive information files
+secrets/*
+
+# Add any other files or directories to be ignored below
+**/.terraform/providers/
+**/temp.tf
+**/openstack-cedentials/credential-openrc.sh

@@ -32,3 +32,11 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+**/.terraform/providers/
+**/temp.tf
+**/openstack-credentials/credentials-openrc.sh
+# Ignore all backup files
+**/.backup
+**/*.back
+*.gitignore.bak
