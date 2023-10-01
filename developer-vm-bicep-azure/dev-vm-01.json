@@ -1,0 +1,267 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.4.1124.51302",
+      "templateHash": "8524001129610505581"
+    }
+  },
+  "parameters": {
+    "vmName": {
+      "type": "string"
+    },
+    "vnetName": {
+      "type": "string"
+    },
+    "subnetName": {
+      "type": "string"
+    },
+    "networkRG": {
+      "type": "string"
+    },
+    "vmDevType": {
+      "type": "string",
+      "metadata": {
+        "description": "VM Typ can be dev-vm for developer or bi-vm for bi-developer"
+      }
+    },
+    "location": {
+      "type": "string"
+    },
+    "localAdminUser": {
+      "type": "string",
+      "defaultValue": "admin001"
+    },
+    "localAdminPasswd": {
+      "type": "secureString"
+    }
+  },
+  "variables": {
+    "var_computernameWithoutDashes": "[replace(parameters('vmName'), '-', '')]",
+    "var_computername": "[substring(variables('var_computernameWithoutDashes'), 0, 10)]",
+    "var_vmSize": "[if(equals(toLower(parameters('vmDevType')), 'developer-vm'), 256, if(equals(toLower(parameters('vmDevType')), 'bi-developer-vm'), 500, 256))]",
+    "var_vmType": "[if(equals(toLower(parameters('vmDevType')), 'developer-vm'), 'Standard_D2s_v3', 'Standard_D4s_v3')]",
+    "dataDiskListRes": [
+      {
+        "name": "[format('{0}_DataDisk_0', parameters('vmName'))]",
+        "sku": "StandardSSD_LRS",
+        "properties": {
+          "diskSizeGB": "[variables('var_vmSize')]",
+          "creationData": {
+            "createOption": "empty"
+          }
+        }
+      }
+    ],
+    "dataDisks": [
+      {
+        "lun": 0,
+        "createOption": "Attach",
+        "deleteOption": "Detach",
+        "caching": "ReadWrite",
+        "writeAcceleratorEnabled": false,
+        "name": "[format('{0}_DataDisk_0', parameters('vmName'))]",
+        "diskSizeGB": "[variables('var_vmSize')]"
+      }
+    ],
+    "psscriptforAppsUri": "https://stvmpowerapp01.blob.core.windows.net/ps-scripts/app-to-install.ps1"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2022-01-01",
+      "name": "[format('pubIP-{0}', parameters('vmName'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publicIPAddressVersion": "IPv4",
+        "publicIPAllocationMethod": "Dynamic"
+      },
+      "sku": {
+        "name": "Basic"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2022-01-01",
+      "name": "[format('nsg-{0}', parameters('vmName'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "Allow_RDP",
+            "properties": {
+              "access": "Allow",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "3389",
+              "protocol": "*",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "direction": "Inbound",
+              "priority": 100
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2022-01-01",
+      "name": "[format('netif-{0}', parameters('vmName'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('pubIP-{0}', parameters('vmName')))]"
+              },
+              "subnet": {
+                "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('networkRG')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]"
+              }
+            }
+          }
+        ],
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', format('nsg-{0}', parameters('vmName')))]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', format('nsg-{0}', parameters('vmName')))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', format('pubIP-{0}', parameters('vmName')))]"
+      ]
+    },
+    {
+      "copy": {
+        "name": "dataDiskResources",
+        "count": "[length(variables('dataDiskListRes'))]"
+      },
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2022-03-02",
+      "name": "[variables('dataDiskListRes')[copyIndex()].name]",
+      "location": "[parameters('location')]",
+      "properties": "[variables('dataDiskListRes')[copyIndex()].properties]",
+      "sku": {
+        "name": "[variables('dataDiskListRes')[copyIndex()].sku]"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-07-01",
+      "name": "[parameters('vmName')]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('var_vmType')]"
+        },
+        "storageProfile": {
+          "copy": [
+            {
+              "name": "dataDisks",
+              "count": "[length(variables('dataDisks'))]",
+              "input": {
+                "lun": "[variables('dataDisks')[copyIndex('dataDisks')].lun]",
+                "createOption": "[variables('dataDisks')[copyIndex('dataDisks')].createOption]",
+                "caching": "ReadWrite",
+                "managedDisk": {
+                  "storageAccountType": "StandardSSD_LRS",
+                  "id": "[resourceId('Microsoft.Compute/disks', variables('dataDisks')[copyIndex('dataDisks')].name)]"
+                },
+                "diskSizeGB": "[variables('dataDisks')[copyIndex('dataDisks')].diskSizeGB]",
+                "toBeDetached": false
+              }
+            }
+          ],
+          "imageReference": {
+            "publisher": "MicrosoftWindowsDesktop",
+            "offer": "Windows-10",
+            "sku": "win10-22h2-pro-g2",
+            "version": "latest"
+          },
+          "osDisk": {
+            "osType": "Windows",
+            "name": "[format('{0}_OsDisk_1', parameters('vmName'))]",
+            "createOption": "FromImage",
+            "caching": "ReadWrite",
+            "managedDisk": {
+              "storageAccountType": "StandardSSD_LRS"
+            },
+            "deleteOption": "Delete",
+            "diskSizeGB": 127
+          }
+        },
+        "osProfile": {
+          "computerName": "[variables('var_computername')]",
+          "adminUsername": "[parameters('localAdminUser')]",
+          "adminPassword": "[parameters('localAdminPasswd')]",
+          "windowsConfiguration": {
+            "provisionVMAgent": true,
+            "enableAutomaticUpdates": true,
+            "patchSettings": {
+              "patchMode": "AutomaticByOS",
+              "assessmentMode": "ImageDefault",
+              "enableHotpatching": false
+            },
+            "enableVMAgentPlatformUpdates": false
+          },
+          "secrets": [],
+          "allowExtensionOperations": true
+        },
+        "securityProfile": {
+          "uefiSettings": {
+            "secureBootEnabled": true,
+            "vTpmEnabled": true
+          },
+          "securityType": "TrustedLaunch"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', format('netif-{0}', parameters('vmName')))]",
+              "properties": {
+                "primary": true
+              }
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true
+          }
+        },
+        "licenseType": "Windows_Client"
+      },
+      "dependsOn": [
+        "dataDiskResources",
+        "[resourceId('Microsoft.Network/networkInterfaces', format('netif-{0}', parameters('vmName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2018-06-01",
+      "name": "[format('{0}/{1}', parameters('vmName'), format('{0}-initconfig', parameters('vmName')))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.10",
+        "autoUpgradeMinorVersion": true,
+        "protectedSettings": {
+          "commandToExecute": "powershell -ExecutionPolicy Unrestricted -File app-to-install.ps1",
+          "fileUris": [
+            "[variables('psscriptforAppsUri')]"
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', parameters('vmName'))]"
+      ]
+    }
+  ]
+}

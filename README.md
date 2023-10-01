@@ -13,3 +13,13 @@ cmd: terraform plan
 **Applying with Enforcement**: The apply command is used to apply the changes required to reach the desired state  
 terraform apply -auto-approve
 
+**Deploy Bicep**
+
+// 
+cmd: az deployment group create --what-if  --resource-group rg-poc-vmwithpowerapp --template-file .\dev-vm-01.bicep --parameters .\dev-vm-01.parameters.json
+
+// generate arm from bicep
+cmd: bicep build .\dev-vm-01.bicep
+
+// generate bicep from arm-template
+cmd: bicep decompile .\dev-vm-01.json

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmName": {
+      "value": "temp-developer-006"
+    },
+    "vnetName": {
+      "value": "vm-dem-001-vnet"
+    },
+    "subnetName": {
+      "value": "default"
+    },
+    "networkRG": {
+      "value": "rg-poc-vmwithpowerapp"
+    },
+    "vmDevType": {
+      "value": "developer-vm"
+    },
+    "location": {
+      "value": "westeurope"
+    },
+    "localAdminPasswd": {
+      "value": "Admin@1234567"
+    }
+  }
+}
